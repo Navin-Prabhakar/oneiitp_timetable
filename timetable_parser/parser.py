@@ -266,9 +266,7 @@ def parse_all_sections(csv_url_or_filepath: str) -> list[dict]:
   return merge_consecutive_lab_slots(raw_records)
 
 
-# ==========================================
-# 5. SYNC EXECUTOR
-# ==========================================
+
 def sync_sheet_to_mongo():
   sheet_id = os.getenv("SHEET_ID") or os.getenv("GOOGLE_SHEET_ID")
   sheet_gid = os.getenv("SHEET_GID", "0")

@@ -12,7 +12,7 @@ col = db["schedules"]
 
 total = col.count_documents({})
 print("=" * 60)
-print(f"📊 DATABASE: oneiitp_db | COLLECTION: schedules | TOTAL: {total}")
+print(f" DATABASE: oneiitp_db | COLLECTION: schedules | TOTAL: {total}")
 print("=" * 60)
 
 # Option A: Clean Table View
@@ -20,7 +20,7 @@ header = f"{'DAY':<10} | {'TIME':<14} | {'COURSE':<10} | {'TYPE':<9} | {'VENUE':
 print(header)
 print("-" * 60)
 
-for doc in col.find({}, {"_id": 0}).limit(15):
+for doc in col.find({}, {"_id": 0}).limit(50):
   day = doc.get("day", "-")
   time_slot = doc.get("time", "-")
   course = doc.get("courseCode", "-")
@@ -33,4 +33,4 @@ for doc in col.find({}, {"_id": 0}).limit(15):
   )
 
 print("=" * 60)
-print("💡 Showing first 15 records. Run the API query to filter by group/day.")
+print("💡 Showing first 50 records. Run the API query to filter by group/day.")
