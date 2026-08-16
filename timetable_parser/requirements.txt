@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pymongo[srv]
+pandas
+requests
+python-dotenv
