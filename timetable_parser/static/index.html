@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IIT Patna Timetable Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-sky-500 selection:text-white">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-sky-500/10 p-2.5 rounded-xl border border-sky-500/20 text-sky-400">
+                    <i class="fa-solid fa-calendar-days text-xl"></i>
+                </div>
+                <div>
+                    <h1
+                        class="text-xl font-bold bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent">
+                        OneIITP Timetable</h1>
+                    <p class="text-xs text-slate-400">Indian Institute of Technology Patna</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Body -->
+    <main class="max-w-6xl mx-auto px-4 py-8">
+
+        <!-- Filter Search Bar -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl mb-8">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+                <!-- Group Input -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Student
+                        Group</label>
+                    <input type="text" id="groupInput" placeholder="e.g. G19, G1, G2..." value="G19"
+                        class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 uppercase font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500 placeholder-slate-600" />
+                </div>
+
+                <!-- Day Filter -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Filter by
+                        Day</label>
+                    <select id="daySelect"
+                        class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <option value="">All Days</option>
+                        <option value="Monday">Monday</option>
+                        <option value="Tuesday">Tuesday</option>
+                        <option value="Wednesday">Wednesday</option>
+                        <option value="Thursday">Thursday</option>
+                        <option value="Friday">Friday</option>
+                        <option value="Saturday">Saturday</option>
+                    </select>
+                </div>
+
+                <!-- Submit Action -->
+                <div class="flex items-end">
+                    <button onclick="fetchSchedule()"
+                        class="w-full bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass"></i> View Schedule
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Message Indicator -->
+        <div id="statusBox" class="text-center py-16 text-slate-400">
+            <i class="fa-regular fa-calendar-check text-4xl mb-3 text-slate-600 block"></i>
+            Click <strong>View Schedule</strong> to load classes.
+        </div>
+
+        <!-- Schedule Results Wrapper -->
+        <div id="scheduleContainer" class="hidden space-y-6"></div>
+
+    </main>
+
+    <script>
+        const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+        function parseTimeForSort(timeStr) {
+            if (!timeStr) return 0;
+            const match = timeStr.match(/(\d+)(?::(\d+))?\s*(AM|PM)/i);
+            if (!match) return 0;
+            let hours = parseInt(match[1]);
+            const minutes = match[2] ? parseInt(match[2]) : 0;
+            const period = match[3].toUpperCase();
+            if (period === "PM" && hours !== 12) hours += 12;
+            if (period === "AM" && hours === 12) hours = 0;
+            return hours * 60 + minutes;
+        }
+
+        function getTypeBadge(typeStr) {
+            const t = (typeStr || "").toLowerCase().trim();
+            if (t.includes("tut")) {
+                return `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs px-2.5 py-1 rounded-md font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-book-open text-[10px]"></i> Tutorial
+                </span>`;
+            } else if (t.includes("lab") || t.includes("practical")) {
+                return `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2.5 py-1 rounded-md font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-flask text-[10px]"></i> Lab
+                </span>`;
+            } else {
+                return `<span class="bg-sky-500/10 text-sky-400 border border-sky-500/20 text-xs px-2.5 py-1 rounded-md font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-chalkboard-user text-[10px]"></i> Lecture
+                </span>`;
+            }
+        }
+
+        async function fetchSchedule() {
+            const rawGroup = document.getElementById("groupInput").value.trim();
+            const group = rawGroup.toUpperCase();
+            const day = document.getElementById("daySelect").value;
+
+            const statusBox = document.getElementById("statusBox");
+            const container = document.getElementById("scheduleContainer");
+
+            if (!group) {
+                alert("Please enter a group (e.g. G19)");
+                return;
+            }
+
+            statusBox.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-3xl text-sky-400 mb-2 block"></i> Loading schedule for ${group}...`;
+            statusBox.classList.remove("hidden");
+            container.classList.add("hidden");
+
+            try {
+                let url = `/api/timetable/${group}`;
+                if (day) url += `?day=${day}`;
+
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (!data.schedule || data.schedule.length === 0) {
+                    statusBox.innerHTML = `
+            <i class="fa-solid fa-mug-hot text-4xl mb-3 text-slate-600 block"></i>
+            <h3 class="text-slate-300 font-semibold text-lg">No classes scheduled</h3>
+            <p class="text-xs text-slate-500 mt-1">No slots found for ${group} ${day ? 'on ' + day : ''}.</p>
+          `;
+                    return;
+                }
+
+                const byDay = {};
+                data.schedule.forEach(slot => {
+                    if (!byDay[slot.day]) byDay[slot.day] = [];
+                    byDay[slot.day].push(slot);
+                });
+
+                Object.keys(byDay).forEach(d => {
+                    byDay[d].sort((a, b) => parseTimeForSort(a.time) - parseTimeForSort(b.time));
+                });
+
+                container.innerHTML = "";
+
+                dayOrder.forEach(currentDay => {
+                    if (!byDay[currentDay]) return;
+
+                    const dayCard = document.createElement("div");
+                    dayCard.className = "bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl";
+
+                    const slotsHtml = byDay[currentDay].map(slot => {
+                        return `
+              <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-800/40 transition">
+                <div class="flex items-start md:items-center gap-4">
+                  <div class="bg-slate-950 border border-slate-800 px-4 py-2.5 rounded-xl text-center min-w-[160px]">
+                    <span class="text-xs font-mono text-sky-400 font-bold tracking-wide">${slot.time}</span>
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-3">
+                      <h4 class="text-lg font-bold text-slate-100">${slot.courseCode}</h4>
+                      ${getTypeBadge(slot.type)}
+                    </div>
+                    <div class="text-xs text-slate-400 mt-1.5 flex items-center gap-2">
+                      <i class="fa-solid fa-location-dot text-rose-400"></i>
+                      <span class="font-medium text-slate-300">${slot.venue}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2 self-start md:self-center">
+                  <span class="text-xs text-slate-400 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg">
+                    Year ${slot.year || 1}
+                  </span>
+                </div>
+              </div>
+            `;
+                    }).join('<div class="border-t border-slate-800/60"></div>');
+
+                    dayCard.innerHTML = `
+            <div class="bg-slate-950/80 px-6 py-3.5 border-b border-slate-800 flex items-center justify-between">
+              <h3 class="font-bold text-sky-400 tracking-wider uppercase text-sm flex items-center gap-2">
+                <i class="fa-regular fa-clock"></i> ${currentDay}
+              </h3>
+              <span class="text-xs font-mono text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded-full">
+                ${byDay[currentDay].length} ${byDay[currentDay].length === 1 ? 'slot' : 'slots'}
+              </span>
+            </div>
+            <div>${slotsHtml}</div>
+          `;
+
+                    container.appendChild(dayCard);
+                });
+
+                statusBox.classList.add("hidden");
+                container.classList.remove("hidden");
+
+            } catch (err) {
+                statusBox.innerHTML = `<span class="text-rose-400">Failed to connect to backend server.</span>`;
+            }
+        }
+
+        window.addEventListener("DOMContentLoaded", fetchSchedule);
+    </script>
+</body>
+
+</html>

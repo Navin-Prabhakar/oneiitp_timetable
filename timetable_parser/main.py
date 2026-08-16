@@ -3,20 +3,21 @@ from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from parser import get_mongo_collection, sync_sheet_to_mongo
 
-# 1. Load environment variables
-env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path)
+load_dotenv()
 
-# 2. Instantiate the FastAPI app BEFORE using @app decorators
 app = FastAPI(title="OneIITP Timetable API")
 
+static_dir = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# 3. Route definitions
+
 @app.get("/")
-def root():
-  return {"message": "OneIITP Timetable Microservice is running."}
+def serve_home():
+  return FileResponse(static_dir / "index.html")
 
 
 @app.get("/api/timetable/{group}")
@@ -33,7 +34,6 @@ def get_group_timetable(group: str, day: Optional[str] = None):
 @app.post("/api/sync")
 def trigger_sync(x_sync_secret: Optional[str] = Header(default=None)):
   expected_secret = os.getenv("SYNC_SECRET")
-
   if not expected_secret or x_sync_secret != expected_secret:
     raise HTTPException(status_code=403, detail="Unauthorized")
 
