@@ -4,3 +4,4 @@ pymongo[srv]
 pandas
 requests
 python-dotenv
+certifi
