@@ -44,6 +44,7 @@
                         class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold">
                         <option value="1">1st Year (UG)</option>
                         <option value="2">2nd Year (UG)</option>
+                        <option value="3">3rd Year (UG)</option>
                     </select>
                 </div>
 
@@ -51,11 +52,11 @@
                 <div id="groupInputWrapper">
                     <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Student
                         Group</label>
-                    <input type="text" id="groupInput" placeholder="e.g. G19, G1, G2..." value="G19"
+                    <input type="text" id="groupInput" placeholder="e.g. G19, G1..." value="G19"
                         class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 uppercase font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500 placeholder-slate-600" />
                 </div>
 
-                <!-- Branch Select (Visible for Year 2) -->
+                <!-- Branch Select (Visible for Year 2 & 3) -->
                 <div id="branchSelectWrapper" class="hidden">
                     <label
                         class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Branch</label>
@@ -100,6 +101,17 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Electives Multi-Select Box -->
+            <div id="electivesWrapper" class="hidden mt-6 pt-5 border-t border-slate-800">
+                <label
+                    class="text-xs font-semibold uppercase tracking-wider text-purple-400 mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group"></i> Select Your Electives / IDEs (Optional)
+                </label>
+                <div id="electivesList" class="flex flex-wrap gap-2 pt-1">
+                    <span class="text-xs text-slate-500">Loading electives...</span>
+                </div>
+            </div>
         </div>
 
         <!-- Status Message Indicator -->
@@ -115,34 +127,95 @@
 
     <script>
         const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        let selectedElectives = new Set();
+
+        function escapeHtml(str) {
+            if (!str) return "";
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        async function loadElectivesForYear(year) {
+            const listEl = document.getElementById("electivesList");
+            listEl.innerHTML = '<span class="text-xs text-slate-500">Loading electives...</span>';
+            selectedElectives.clear();
+
+            try {
+                const res = await fetch(`/api/electives?year=${year}`);
+                if (!res.ok) throw new Error("Network response failed");
+                const data = await res.json();
+
+                if (!data || data.length === 0) {
+                    listEl.innerHTML = '<span class="text-xs text-slate-500">No electives found for this year.</span>';
+                    return;
+                }
+
+                listEl.innerHTML = "";
+                data.forEach(item => {
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-950 text-slate-300 hover:border-purple-500 transition duration-150 flex items-center gap-1.5";
+                    btn.innerHTML = `<span>${escapeHtml(item.code)}</span> <span class="text-[10px] text-slate-400 truncate max-w-[140px]">(${escapeHtml(item.name || "Elective")})</span>`;
+
+                    btn.onclick = () => {
+                        if (selectedElectives.has(item.code)) {
+                            selectedElectives.delete(item.code);
+                            btn.classList.remove("bg-purple-600", "text-white", "border-purple-500");
+                            btn.classList.add("bg-slate-950", "text-slate-300", "border-slate-700");
+                        } else {
+                            selectedElectives.add(item.code);
+                            btn.classList.add("bg-purple-600", "text-white", "border-purple-500");
+                            btn.classList.remove("bg-slate-950", "text-slate-300", "border-slate-700");
+                        }
+                    };
+                    listEl.appendChild(btn);
+                });
+            } catch (err) {
+                listEl.innerHTML = '<span class="text-xs text-rose-400">Failed to load electives</span>';
+            }
+        }
 
         function handleYearChange() {
             const year = document.getElementById("yearSelect").value;
             const groupWrapper = document.getElementById("groupInputWrapper");
             const branchWrapper = document.getElementById("branchSelectWrapper");
+            const electivesWrapper = document.getElementById("electivesWrapper");
 
             if (year === "1") {
                 groupWrapper.classList.remove("hidden");
                 branchWrapper.classList.add("hidden");
+                electivesWrapper.classList.add("hidden");
             } else {
                 groupWrapper.classList.add("hidden");
                 branchWrapper.classList.remove("hidden");
+                electivesWrapper.classList.remove("hidden");
+                loadElectivesForYear(year);
             }
         }
 
         function parseTimeForSort(timeStr) {
             if (!timeStr) return 0;
-            const match = timeStr.match(/(\d+)(?::(\d+))?\s*(AM|PM)/i);
+            // Supports both HH:MM and HH.MM formats
+            const match = timeStr.match(/(\d+)(?:[:\.](\d+))?\s*(AM|PM)/i);
             if (!match) return 0;
-            let hours = parseInt(match[1]);
-            const minutes = match[2] ? parseInt(match[2]) : 0;
+            let hours = parseInt(match[1], 10);
+            const minutes = match[2] ? parseInt(match[2], 10) : 0;
             const period = match[3].toUpperCase();
             if (period === "PM" && hours !== 12) hours += 12;
             if (period === "AM" && hours === 12) hours = 0;
             return hours * 60 + minutes;
         }
 
-        function getTypeBadge(typeStr) {
+        function getTypeBadge(typeStr, isElective) {
+            if (isElective) {
+                return `<span class="bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs px-2.5 py-1 rounded-md font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-sparkles text-[10px]"></i> Elective
+                </span>`;
+            }
             const t = (typeStr || "").toLowerCase().trim();
             if (t.includes("tut")) {
                 return `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs px-2.5 py-1 rounded-md font-semibold flex items-center gap-1">
@@ -165,7 +238,7 @@
             const statusBox = document.getElementById("statusBox");
             const container = document.getElementById("scheduleContainer");
 
-            let url = `/api/timetable?year=${year}`;
+            let url = `/api/timetable?year=${encodeURIComponent(year)}`;
             let displayTarget = "";
 
             if (year === "1") {
@@ -174,29 +247,34 @@
                     alert("Please enter a student group (e.g. G19)");
                     return;
                 }
-                url += `&group=${group}`;
+                url += `&group=${encodeURIComponent(group)}`;
                 displayTarget = `Group ${group} (1st Year)`;
             } else {
                 const branch = document.getElementById("branchSelect").value;
-                url += `&branch=${branch}`;
-                displayTarget = `${branch} (2nd Year)`;
+                url += `&branch=${encodeURIComponent(branch)}`;
+                displayTarget = `${branch} (Year ${year})`;
+
+                if (selectedElectives.size > 0) {
+                    url += `&electives=${encodeURIComponent(Array.from(selectedElectives).join(","))}`;
+                }
             }
 
-            if (day) url += `&day=${day}`;
+            if (day) url += `&day=${encodeURIComponent(day)}`;
 
-            statusBox.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-3xl text-sky-400 mb-2 block"></i> Loading schedule for ${displayTarget}...`;
+            statusBox.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-3xl text-sky-400 mb-2 block"></i> Loading schedule for ${escapeHtml(displayTarget)}...`;
             statusBox.classList.remove("hidden");
             container.classList.add("hidden");
 
             try {
                 const res = await fetch(url);
+                if (!res.ok) throw new Error("API route returned an error");
                 const data = await res.json();
 
                 if (!data.schedule || data.schedule.length === 0) {
                     statusBox.innerHTML = `
                         <i class="fa-solid fa-mug-hot text-4xl mb-3 text-slate-600 block"></i>
                         <h3 class="text-slate-300 font-semibold text-lg">No classes scheduled</h3>
-                        <p class="text-xs text-slate-500 mt-1">No slots found for ${displayTarget} ${day ? 'on ' + day : ''}.</p>
+                        <p class="text-xs text-slate-500 mt-1">No slots found for ${escapeHtml(displayTarget)}${day ? ' on ' + escapeHtml(day) : ''}.</p>
                     `;
                     return;
                 }
@@ -222,34 +300,34 @@
                     const slotsHtml = byDay[currentDay].map(slot => {
                         const tagText = slot.year === 1
                             ? `Year 1 • ${(slot.group || []).join(', ')}`
-                            : `Year ${slot.year} • ${slot.branch}`;
+                            : (slot.isElective ? `Year ${slot.year} • Elective` : `Year ${slot.year} • ${slot.branch}`);
 
                         const courseNameHtml = slot.courseName
-                            ? `<p class="text-xs sm:text-sm text-slate-400 mt-0.5">${slot.courseName}</p>`
+                            ? `<p class="text-xs sm:text-sm text-slate-400 mt-0.5">${escapeHtml(slot.courseName)}</p>`
                             : '';
 
                         return `
-                        <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-800/40 transition">
+                        <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-800/40 transition ${slot.isElective ? 'border-l-4 border-purple-500/80 bg-purple-500/[0.02]' : ''}">
                             <div class="flex items-start md:items-center gap-4">
                                 <div class="bg-slate-950 border border-slate-800 px-4 py-2.5 rounded-xl text-center min-w-[160px]">
-                                    <span class="text-xs font-mono text-sky-400 font-bold tracking-wide">${slot.time}</span>
+                                    <span class="text-xs font-mono ${slot.isElective ? 'text-purple-400' : 'text-sky-400'} font-bold tracking-wide">${escapeHtml(slot.time)}</span>
                                 </div>
                                 <div>
                                     <div class="flex items-center gap-3">
-                                        <h4 class="text-lg font-bold text-slate-100">${slot.courseCode}</h4>
-                                        ${getTypeBadge(slot.type)}
+                                        <h4 class="text-lg font-bold text-slate-100">${escapeHtml(slot.courseCode)}</h4>
+                                        ${getTypeBadge(slot.type, slot.isElective)}
                                     </div>
                                     ${courseNameHtml}
                                     <div class="text-xs text-slate-400 mt-1.5 flex items-center gap-2">
                                         <i class="fa-solid fa-location-dot text-rose-400"></i>
-                                        <span class="font-medium text-slate-300">${slot.venue}</span>
+                                        <span class="font-medium text-slate-300">${escapeHtml(slot.venue)}</span>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="flex items-center gap-2 self-start md:self-center">
                                 <span class="text-xs text-slate-400 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg font-medium">
-                                    ${tagText}
+                                    ${escapeHtml(tagText)}
                                 </span>
                             </div>
                         </div>
@@ -259,7 +337,7 @@
                     dayCard.innerHTML = `
                         <div class="bg-slate-950/80 px-6 py-3.5 border-b border-slate-800 flex items-center justify-between">
                             <h3 class="font-bold text-sky-400 tracking-wider uppercase text-sm flex items-center gap-2">
-                                <i class="fa-regular fa-clock"></i> ${currentDay}
+                                <i class="fa-regular fa-clock"></i> ${escapeHtml(currentDay)}
                             </h3>
                             <span class="text-xs font-mono text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded-full">
                                 ${byDay[currentDay].length} ${byDay[currentDay].length === 1 ? 'slot' : 'slots'}
