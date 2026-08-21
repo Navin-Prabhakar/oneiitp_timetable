@@ -301,7 +301,6 @@
                         const tagText = slot.year === 1
                             ? `Year 1 • ${(slot.group || []).join(', ')}`
                             : (slot.isElective ? `Year ${slot.year} • Elective` : `Year ${slot.year} • ${slot.branch}`);
-
                         const courseNameHtml = slot.courseName
                             ? `<p class="text-xs sm:text-sm text-slate-400 mt-0.5">${escapeHtml(slot.courseName)}</p>`
                             : '';

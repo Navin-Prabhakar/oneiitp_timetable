@@ -43,7 +43,10 @@ sheet_id = (
 )
 
 SHEET_CONFIGS = [
+    # --- 1st Year ---
     {"year": 1, "branch": "ALL", "gid": "0", "is_elective": False},
+
+    # --- 2nd Year Branches ---
     {"year": 2, "branch": "CS", "gid": "622034002", "is_elective": False},
     {"year": 2, "branch": "AI", "gid": "1192828503", "is_elective": False},
     {"year": 2, "branch": "EC", "gid": "424921665", "is_elective": False},
@@ -56,7 +59,22 @@ SHEET_CONFIGS = [
     {"year": 2, "branch": "MC", "gid": "30201283", "is_elective": False},
     {"year": 2, "branch": "CT", "gid": "986905833", "is_elective": False},
     {"year": 2, "branch": "ES", "gid": "72641676", "is_elective": False},
-    # Electives
+
+    # --- 3rd Year Branches (Insert your 3rd year GIDs here) ---
+    {"year": 3, "branch": "CS", "gid": "744530959", "is_elective": False},
+    {"year": 3, "branch": "AI", "gid": "1492362126", "is_elective": False},
+    {"year": 3, "branch": "EC", "gid": "1354699532", "is_elective": False},
+    {"year": 3, "branch": "EE", "gid": "1183462295", "is_elective": False},
+    {"year": 3, "branch": "ME", "gid": "1534130030", "is_elective": False},
+    {"year": 3, "branch": "CE", "gid": "382755719", "is_elective": False},
+    {"year": 3, "branch": "CB", "gid": "152437807", "is_elective": False},
+    {"year": 3, "branch": "MM", "gid": "1706315147", "is_elective": False},
+    {"year": 3, "branch": "PH", "gid": "853391723", "is_elective": False},
+    {"year": 3, "branch": "MC", "gid": "1709428023", "is_elective": False},
+    {"year": 3, "branch": "CT", "gid": "278267458", "is_elective": False},
+    {"year": 3, "branch": "ES", "gid": "509873566", "is_elective": False},
+
+    # --- Electives ---
     {"year": 2, "branch": "ELECTIVE", "gid": "320515251", "is_elective": True},
     {"year": 3, "branch": "ELECTIVE", "gid": "12295155", "is_elective": True},
 ]
