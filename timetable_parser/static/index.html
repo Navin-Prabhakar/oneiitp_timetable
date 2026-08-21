@@ -21,7 +21,8 @@
                 <div>
                     <h1
                         class="text-xl font-bold bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent">
-                        OneIITP Timetable</h1>
+                        OneIITP Timetable
+                    </h1>
                     <p class="text-xs text-slate-400">Indian Institute of Technology Patna</p>
                 </div>
             </div>
@@ -33,14 +34,46 @@
 
         <!-- Filter Search Bar -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl mb-8">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
-                <!-- Group Input -->
+                <!-- Year Select -->
                 <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Academic
+                        Year</label>
+                    <select id="yearSelect" onchange="handleYearChange()"
+                        class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold">
+                        <option value="1">1st Year (UG)</option>
+                        <option value="2">2nd Year (UG)</option>
+                    </select>
+                </div>
+
+                <!-- Group Input (Visible for Year 1) -->
+                <div id="groupInputWrapper">
                     <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Student
                         Group</label>
                     <input type="text" id="groupInput" placeholder="e.g. G19, G1, G2..." value="G19"
                         class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 uppercase font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500 placeholder-slate-600" />
+                </div>
+
+                <!-- Branch Select (Visible for Year 2) -->
+                <div id="branchSelectWrapper" class="hidden">
+                    <label
+                        class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Branch</label>
+                    <select id="branchSelect"
+                        class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold">
+                        <option value="CS">Computer Science (CS)</option>
+                        <option value="AI">Artificial Intelligence & DS (AI)</option>
+                        <option value="EC">Electronics & Comm. (EC)</option>
+                        <option value="EE">Electrical Engineering (EE)</option>
+                        <option value="ME">Mechanical Engineering (ME)</option>
+                        <option value="CE">Civil Engineering (CE)</option>
+                        <option value="CB">Chemical Engg. (CB)</option>
+                        <option value="MM">Metallurgical & Mat. (MM)</option>
+                        <option value="PH">Engineering Physics (PH)</option>
+                        <option value="MC">Mathematics & Computing (MC)</option>
+                        <option value="CT">Chemical Science & Technology (CT)</option>
+                        <option value="ES">BS Economics (ES)</option>
+                    </select>
                 </div>
 
                 <!-- Day Filter -->
@@ -83,6 +116,20 @@
     <script>
         const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+        function handleYearChange() {
+            const year = document.getElementById("yearSelect").value;
+            const groupWrapper = document.getElementById("groupInputWrapper");
+            const branchWrapper = document.getElementById("branchSelectWrapper");
+
+            if (year === "1") {
+                groupWrapper.classList.remove("hidden");
+                branchWrapper.classList.add("hidden");
+            } else {
+                groupWrapper.classList.add("hidden");
+                branchWrapper.classList.remove("hidden");
+            }
+        }
+
         function parseTimeForSort(timeStr) {
             if (!timeStr) return 0;
             const match = timeStr.match(/(\d+)(?::(\d+))?\s*(AM|PM)/i);
@@ -113,35 +160,44 @@
         }
 
         async function fetchSchedule() {
-            const rawGroup = document.getElementById("groupInput").value.trim();
-            const group = rawGroup.toUpperCase();
+            const year = document.getElementById("yearSelect").value;
             const day = document.getElementById("daySelect").value;
-
             const statusBox = document.getElementById("statusBox");
             const container = document.getElementById("scheduleContainer");
 
-            if (!group) {
-                alert("Please enter a group (e.g. G19)");
-                return;
+            let url = `/api/timetable?year=${year}`;
+            let displayTarget = "";
+
+            if (year === "1") {
+                const group = document.getElementById("groupInput").value.trim().toUpperCase();
+                if (!group) {
+                    alert("Please enter a student group (e.g. G19)");
+                    return;
+                }
+                url += `&group=${group}`;
+                displayTarget = `Group ${group} (1st Year)`;
+            } else {
+                const branch = document.getElementById("branchSelect").value;
+                url += `&branch=${branch}`;
+                displayTarget = `${branch} (2nd Year)`;
             }
 
-            statusBox.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-3xl text-sky-400 mb-2 block"></i> Loading schedule for ${group}...`;
+            if (day) url += `&day=${day}`;
+
+            statusBox.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-3xl text-sky-400 mb-2 block"></i> Loading schedule for ${displayTarget}...`;
             statusBox.classList.remove("hidden");
             container.classList.add("hidden");
 
             try {
-                let url = `/api/timetable/${group}`;
-                if (day) url += `?day=${day}`;
-
                 const res = await fetch(url);
                 const data = await res.json();
 
                 if (!data.schedule || data.schedule.length === 0) {
                     statusBox.innerHTML = `
-            <i class="fa-solid fa-mug-hot text-4xl mb-3 text-slate-600 block"></i>
-            <h3 class="text-slate-300 font-semibold text-lg">No classes scheduled</h3>
-            <p class="text-xs text-slate-500 mt-1">No slots found for ${group} ${day ? 'on ' + day : ''}.</p>
-          `;
+                        <i class="fa-solid fa-mug-hot text-4xl mb-3 text-slate-600 block"></i>
+                        <h3 class="text-slate-300 font-semibold text-lg">No classes scheduled</h3>
+                        <p class="text-xs text-slate-500 mt-1">No slots found for ${displayTarget} ${day ? 'on ' + day : ''}.</p>
+                    `;
                     return;
                 }
 
@@ -164,44 +220,53 @@
                     dayCard.className = "bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl";
 
                     const slotsHtml = byDay[currentDay].map(slot => {
-                        return `
-              <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-800/40 transition">
-                <div class="flex items-start md:items-center gap-4">
-                  <div class="bg-slate-950 border border-slate-800 px-4 py-2.5 rounded-xl text-center min-w-[160px]">
-                    <span class="text-xs font-mono text-sky-400 font-bold tracking-wide">${slot.time}</span>
-                  </div>
-                  <div>
-                    <div class="flex items-center gap-3">
-                      <h4 class="text-lg font-bold text-slate-100">${slot.courseCode}</h4>
-                      ${getTypeBadge(slot.type)}
-                    </div>
-                    <div class="text-xs text-slate-400 mt-1.5 flex items-center gap-2">
-                      <i class="fa-solid fa-location-dot text-rose-400"></i>
-                      <span class="font-medium text-slate-300">${slot.venue}</span>
-                    </div>
-                  </div>
-                </div>
+                        const tagText = slot.year === 1
+                            ? `Year 1 • ${(slot.group || []).join(', ')}`
+                            : `Year ${slot.year} • ${slot.branch}`;
 
-                <div class="flex items-center gap-2 self-start md:self-center">
-                  <span class="text-xs text-slate-400 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg">
-                    Year ${slot.year || 1}
-                  </span>
-                </div>
-              </div>
-            `;
+                        const courseNameHtml = slot.courseName
+                            ? `<p class="text-xs sm:text-sm text-slate-400 mt-0.5">${slot.courseName}</p>`
+                            : '';
+
+                        return `
+                        <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-800/40 transition">
+                            <div class="flex items-start md:items-center gap-4">
+                                <div class="bg-slate-950 border border-slate-800 px-4 py-2.5 rounded-xl text-center min-w-[160px]">
+                                    <span class="text-xs font-mono text-sky-400 font-bold tracking-wide">${slot.time}</span>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-3">
+                                        <h4 class="text-lg font-bold text-slate-100">${slot.courseCode}</h4>
+                                        ${getTypeBadge(slot.type)}
+                                    </div>
+                                    ${courseNameHtml}
+                                    <div class="text-xs text-slate-400 mt-1.5 flex items-center gap-2">
+                                        <i class="fa-solid fa-location-dot text-rose-400"></i>
+                                        <span class="font-medium text-slate-300">${slot.venue}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-2 self-start md:self-center">
+                                <span class="text-xs text-slate-400 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg font-medium">
+                                    ${tagText}
+                                </span>
+                            </div>
+                        </div>
+                        `;
                     }).join('<div class="border-t border-slate-800/60"></div>');
 
                     dayCard.innerHTML = `
-            <div class="bg-slate-950/80 px-6 py-3.5 border-b border-slate-800 flex items-center justify-between">
-              <h3 class="font-bold text-sky-400 tracking-wider uppercase text-sm flex items-center gap-2">
-                <i class="fa-regular fa-clock"></i> ${currentDay}
-              </h3>
-              <span class="text-xs font-mono text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded-full">
-                ${byDay[currentDay].length} ${byDay[currentDay].length === 1 ? 'slot' : 'slots'}
-              </span>
-            </div>
-            <div>${slotsHtml}</div>
-          `;
+                        <div class="bg-slate-950/80 px-6 py-3.5 border-b border-slate-800 flex items-center justify-between">
+                            <h3 class="font-bold text-sky-400 tracking-wider uppercase text-sm flex items-center gap-2">
+                                <i class="fa-regular fa-clock"></i> ${currentDay}
+                            </h3>
+                            <span class="text-xs font-mono text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded-full">
+                                ${byDay[currentDay].length} ${byDay[currentDay].length === 1 ? 'slot' : 'slots'}
+                            </span>
+                        </div>
+                        <div>${slotsHtml}</div>
+                    `;
 
                     container.appendChild(dayCard);
                 });
